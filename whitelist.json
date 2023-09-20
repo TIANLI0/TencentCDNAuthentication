@@ -1,0 +1,28 @@
+{
+    "pathlist": [
+      {
+        "paths": ["^/gh/.*$", "^/example/.*$"],
+        "reason": "敏感数据"
+      },
+      {
+        "paths": ["^/npm/.*$"],
+        "reason": "敏感数据"
+      },
+      {
+        "paths": ["^/sm/.*$"],
+        "reason": "敏感数据"
+      },
+      {
+        "paths": ["^/admin.*$"],
+        "reason": "非授权访问"
+      }
+    ],
+    "referlist": [
+      {
+        "refer": "localhost",
+        "reason": "允许本地"
+      }
+    ],
+    "allowEmptyReferer": true
+  }
+  

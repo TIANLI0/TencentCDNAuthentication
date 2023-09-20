@@ -1,0 +1,55 @@
+name: Go Release Action
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Go environment
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.19
+
+    - name: Build binaries
+      run: |
+        go build -o CDNAuthentication-linux-amd64 -v
+        GOOS=windows GOARCH=amd64 go build -o CDNAuthentication-windows-amd64.exe -v
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Linux Binary
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./CDNAuthentication-linux-amd64
+        asset_name: CDNAuthentication-linux-amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload Windows Binary
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./CDNAuthentication-windows-amd64.exe
+        asset_name: CDNAuthentication-windows-amd64.exe
+        asset_content_type: application/octet-stream
