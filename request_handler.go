@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -24,6 +25,10 @@ func init() {
 }
 
 func handleRequest(c *gin.Context) {
+
+	go func() {
+		logRequest(c)
+	}()
 
 	ip := c.Request.Header.Get("X-Forwarded-For")
 	if ip == "" {
@@ -101,4 +106,39 @@ func QPS() bool {
 	}()
 
 	return record.Count <= qps_int
+}
+
+func logRequest(c *gin.Context) {
+
+	go func() {
+		// 检查并删除七天之前的日志文件
+		files, err := os.ReadDir("./log")
+		if err != nil {
+			fmt.Println("读取日志文件失败：", err)
+			return
+		}
+		for _, file := range files {
+			fileInfo, err := file.Info()
+			if err != nil {
+				fmt.Printf("获取文件信息失败：%s：%s\n", file.Name(), err)
+				continue
+			}
+			if time.Since(fileInfo.ModTime()) > 7*24*time.Hour {
+				err = os.Remove(fmt.Sprintf("./log/%s", file.Name()))
+				if err != nil {
+					fmt.Printf("删除文件失败：%s：%s\n", file.Name(), err)
+				}
+			}
+		}
+	}()
+
+	os.Mkdir("./log", 0777)
+	logPath := fmt.Sprintf("./log/%s.log", time.Now().Format("2006-01-02"))
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		fmt.Println("创建日志文件失败：", err)
+	}
+	defer logFile.Close()
+	logFile.WriteString(fmt.Sprintf("%s\n%s %s %s %s\n\n", time.Now(), c.Request.RemoteAddr, c.Request.Method, c.Request.URL, c.Request.Header))
+
 }
