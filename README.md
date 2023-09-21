@@ -1,5 +1,7 @@
-# TencentCDNAuthentication（开发中）
+# TencentCDNAuthentication
 简单的腾讯云鉴权服务，支持QPS IP_QPS 等限制，也可在高响应次数的场景下自动关闭CDN，适用于腾讯云的远程鉴权服务。
+
+由于各种限制，目前不具备UA分析功能。
 
 ![img](https://qcloudimg.tencent-cloud.cn/image/document/d26215edda04745d6fdee7d68ef64cc5.jpg?1)
 
@@ -22,4 +24,4 @@
 | cdn_domain | 114514.com | 否       | 需要自动关闭的CDN站点域名                                    |
 | qps        | 10000      | 是       | 一分钟内的QPS限制，超过限制将返回403                         |
 | ip_qps     | 500        | 是       | 单IP一分钟内的QPS限制，超过限制将返回403                     |
-| max_qps    | 500000     | 是       | 一分钟内的QPS限制，超过限制将关闭CDN                         |
+| max_qps    | 500000     | 是       | 一分钟内的QPS限制，超过限制将关闭CDN，如果未配置secret建议将此项配置尽量高 |
