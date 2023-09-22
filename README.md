@@ -1,7 +1,7 @@
 # TencentCDNAuthentication
 简单的腾讯云鉴权服务，支持QPS IP_QPS 等限制，也可在高响应次数的场景下自动关闭CDN，适用于腾讯云的远程鉴权服务。
 
-注意：上线生成环境前要测试CDN回源节点连通性！！！
+注意：上线生成环境前要测试CDN回源节点连通性！！！由于腾讯云CDN限制，只支持单CDN熔断。
 
 ![img](https://qcloudimg.tencent-cloud.cn/image/document/d26215edda04745d6fdee7d68ef64cc5.jpg?1)
 
