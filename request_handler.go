@@ -16,16 +16,18 @@ type AccessRecord struct {
 }
 
 var (
-	mutex       sync.Mutex
-	ipAccessMap map[string]AccessRecord
+	mutex         sync.RWMutex
+	ipAccessMap   map[string]AccessRecord
+	ipAccessSlice []string
+	logMutex      sync.Mutex
 )
 
 func init() {
 	ipAccessMap = make(map[string]AccessRecord)
+	ipAccessSlice = make([]string, 0)
 }
 
 func handleRequest(c *gin.Context) {
-
 	go func() {
 		logRequest(c)
 	}()
@@ -37,25 +39,24 @@ func handleRequest(c *gin.Context) {
 	if !isPathWhitelisted(c.Request.URL.Path) || !isRefererWhitelisted(c.Request.Referer()) || isPathBlacklisted(c.Request.URL.Path) || isRefererBlacklisted(c.Request.Referer()) || !ip_QPS(ip) || !QPS() {
 		c.JSON(http.StatusForbidden, gin.H{"message": "Forbidden."})
 	} else {
-
 		c.JSON(http.StatusOK, gin.H{"message": "OK.Tianli's CDN is working."})
-		fmt.Println("QPS:", ipAccessMap["QPS"].Count)
+		fmt.Println("QPS:", getQPS())
 	}
 }
-
-// IP QPS限制函数
 
 func ip_QPS(ip string) bool {
 	if ip == "" {
 		return true
 	}
+
 	mutex.Lock()
 	defer mutex.Unlock()
 
 	currentTime := time.Now()
 
 	// 删除一分钟之前的访问记录
-	for accessTime, record := range ipAccessMap {
+	for _, accessTime := range ipAccessSlice {
+		record := ipAccessMap[accessTime]
 		if currentTime.Sub(record.LastAccessTime) > time.Minute {
 			delete(ipAccessMap, accessTime)
 		}
@@ -73,7 +74,6 @@ func ip_QPS(ip string) bool {
 	return record.Count <= ip_qps_int
 }
 
-// QPS限制函数，只需要记录单位时间内的访问次数是否超过阈值即可
 func QPS() bool {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -81,7 +81,8 @@ func QPS() bool {
 	currentTime := time.Now()
 
 	// 删除一分钟之前的访问记录
-	for accessTime, record := range ipAccessMap {
+	for _, accessTime := range ipAccessSlice {
+		record := ipAccessMap[accessTime]
 		if currentTime.Sub(record.LastAccessTime) > time.Minute {
 			delete(ipAccessMap, accessTime)
 		}
@@ -95,6 +96,7 @@ func QPS() bool {
 	record.Count++
 	record.LastAccessTime = currentTime
 	ipAccessMap["QPS"] = record
+
 	go func() {
 		if record.Count > max_qps_int {
 			fmt.Println("QPS超过阈值，当前QPS为：", record.Count)
@@ -108,8 +110,18 @@ func QPS() bool {
 	return record.Count <= qps_int
 }
 
-func logRequest(c *gin.Context) {
+func getQPS() int {
+	mutex.RLock()
+	defer mutex.RUnlock()
 
+	record, exists := ipAccessMap["QPS"]
+	if !exists {
+		return 0
+	}
+	return record.Count
+}
+
+func logRequest(c *gin.Context) {
 	go func() {
 		// 检查并删除七天之前的日志文件
 		files, err := os.ReadDir("./log")
@@ -132,13 +144,16 @@ func logRequest(c *gin.Context) {
 		}
 	}()
 
+	logMutex.Lock()
+	defer logMutex.Unlock()
+
 	os.Mkdir("./log", 0777)
 	logPath := fmt.Sprintf("./log/%s.log", time.Now().Format("2006-01-02"))
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
 		fmt.Println("创建日志文件失败：", err)
+		return
 	}
 	defer logFile.Close()
 	logFile.WriteString(fmt.Sprintf("%s\n%s %s %s %s\n\n", time.Now(), c.Request.RemoteAddr, c.Request.Method, c.Request.URL, c.Request.Header))
-
 }
