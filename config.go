@@ -15,6 +15,7 @@ var (
 	qps_int     int
 	max_qps_int int
 	cdn_domains string
+	maxTraffic  float64
 )
 
 func loadconfig() {
@@ -65,5 +66,12 @@ func loadconfig() {
 	cdn_domains = os.Getenv("cdn_domain")
 	if cdn_domains == "" {
 		fmt.Println("cdn_domain为空，请检查.env文件")
+	}
+
+	maxTraffic_str := os.Getenv("max_traffic")
+	maxTraffic, err = strconv.ParseFloat(maxTraffic_str, 64)
+	if err != nil {
+		fmt.Println("maxTraffic转换失败，请检查.env文件")
+		maxTraffic = 1000000
 	}
 }

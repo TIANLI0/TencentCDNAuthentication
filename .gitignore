@@ -23,3 +23,6 @@ go.work
 # log files
 log/
 
+# 忽略DB文件
+*.DB
+

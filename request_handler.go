@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"sync"
@@ -20,6 +21,9 @@ var (
 	ipAccessMap   map[string]AccessRecord
 	ipAccessSlice []string
 	logMutex      sync.Mutex
+	istrigger     bool
+	dbFile        = "CDN.DB"
+	traffic       float64
 )
 
 func init() {
@@ -39,6 +43,15 @@ func handleRequest(c *gin.Context) {
 	if !isPathWhitelisted(c.Request.URL.Path) || !isRefererWhitelisted(c.Request.Referer()) || isPathBlacklisted(c.Request.URL.Path) || isRefererBlacklisted(c.Request.Referer()) || !ip_QPS(ip) || !QPS() {
 		c.JSON(http.StatusForbidden, gin.H{"message": "Forbidden."})
 	} else {
+		go func() {
+			if Traffic(c.Request.URL.Path) {
+				fmt.Println("流量超过阈值，已停止CDN服务")
+				result, _ := NewStopCdnDomainRequests(cdn_domains)
+				fmt.Println("请检查是否有人在攻击你的CDN！", result)
+				// 限制NewStopCdnDomainRequests函数的调用频率
+				time.Sleep(60 * time.Second)
+			}
+		}()
 		c.JSON(http.StatusOK, gin.H{"message": "OK.Tianli's CDN is working."})
 		fmt.Println("QPS:", getQPS())
 	}
@@ -100,10 +113,10 @@ func QPS() bool {
 	go func() {
 		if record.Count > max_qps_int {
 			fmt.Println("QPS超过阈值，当前QPS为：", record.Count)
-			// 限制NewStopCdnDomainRequests函数的调用频率
-			time.Sleep(60 * time.Second)
 			result, _ := NewStopCdnDomainRequests(cdn_domains)
 			fmt.Println("请检查是否有人在攻击你的CDN！", result)
+			// 限制NewStopCdnDomainRequests函数的调用频率
+			time.Sleep(60 * time.Second)
 		}
 	}()
 
@@ -156,4 +169,94 @@ func logRequest(c *gin.Context) {
 	}
 	defer logFile.Close()
 	logFile.WriteString(fmt.Sprintf("%s\n%s %s %s %s\n\n", time.Now(), c.Request.RemoteAddr, c.Request.Method, c.Request.URL, c.Request.Header))
+}
+
+func Traffic(path string) bool {
+	go func() {
+		if !istrigger {
+			time.Sleep(24 * time.Hour)
+			istrigger = true
+			// 清零流量统计
+			traffic = 0.0
+		}
+	}()
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	traffic_0 := readDB(path)
+	if traffic_0 == 0 {
+		bodySize := getBodySize(path)
+		recordDB(path, bodySize)
+		traffic += float64(bodySize) / 1024.0 / 1024.0
+	} else {
+		traffic += traffic_0
+	}
+
+	fmt.Printf("估计流量：%.2fMB 设置阈值:%.2fMB ", traffic, maxTraffic)
+	return traffic >= maxTraffic
+}
+
+// 读取CDN.DB文件的数据
+func readDB(path string) float64 {
+	file, err := os.OpenFile(dbFile, os.O_RDONLY, 0666)
+	if err != nil {
+		fmt.Println("打开DB失败:", err)
+		return 0
+	}
+	defer file.Close()
+	var bodySize int
+
+	for {
+
+		_, err := fmt.Fscanf(file, "%s %d\n", &path, &bodySize)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Println("读取失败:", err)
+			return 0.0
+		}
+
+	}
+
+	return float64(bodySize) / 1024 / 1024
+}
+
+// 记录相关数据到CDN.DB
+func recordDB(path string, bodySize int) {
+	file, err := os.OpenFile(dbFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Println("打开DB失败:", err)
+		return
+	}
+	defer file.Close()
+
+	record := fmt.Sprintf("%s %d\n", path, bodySize)
+	_, err = file.WriteString(record)
+	if err != nil {
+		fmt.Println("写入DB失败:", err)
+		return
+	}
+}
+
+// 获取请求地址的body大小
+func getBodySize(path string) int {
+	// 组装请求地址
+	url := fmt.Sprintf("http://%s%s", cdn_domains, path)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("请求失败:", err)
+		return 0
+	}
+	defer resp.Body.Close()
+
+	// 读取response的body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("请求失败:", err)
+		return 0
+	}
+
+	return len(bodyBytes)
 }
