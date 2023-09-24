@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"net/http"
@@ -180,11 +181,9 @@ func Traffic(path string) bool {
 			traffic = 0.0
 		}
 	}()
-	mutex.Lock()
-	defer mutex.Unlock()
 
 	traffic_0 := readDB(path)
-	if traffic_0 == 0 {
+	if traffic_0 == 0.0 {
 		bodySize := getBodySize(path)
 		recordDB(path, bodySize)
 		traffic += float64(bodySize) / 1024.0 / 1024.0
@@ -206,20 +205,31 @@ func readDB(path string) float64 {
 	defer file.Close()
 	var bodySize int
 
-	for {
-
-		_, err := fmt.Fscanf(file, "%s %d\n", &path, &bodySize)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		linePath, err := fmt.Sscanf(line, "%s %d\n", &path, &bodySize)
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
 			fmt.Println("读取失败:", err)
 			return 0.0
 		}
+		if linePath != 2 {
+			fmt.Println("读取失败: 数据格式错误")
+			return 0.0
+		}
 
+		// 找到匹配的路径后返回大小
+		if path == "desired_path" {
+			return float64(bodySize) / 1024 / 1024
+		}
 	}
 
-	return float64(bodySize) / 1024 / 1024
+	if scanner.Err() != nil {
+		fmt.Println("读取失败:", scanner.Err())
+		return 0.0
+	}
+
+	return 0.0
 }
 
 // 记录相关数据到CDN.DB
