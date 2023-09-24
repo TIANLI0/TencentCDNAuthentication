@@ -3,6 +3,7 @@
 
 注意：上线生成环境前要测试CDN回源节点连通性！！！由于腾讯云CDN限制，只支持单CDN熔断。
 
+
 ![img](https://qcloudimg.tencent-cloud.cn/image/document/d26215edda04745d6fdee7d68ef64cc5.jpg?1)
 
 ## How To Use?
@@ -26,4 +27,4 @@ Tips: 当然，你可以将超时设置调的尽量低，仅仅将此程序视�
 | qps         | 10000      | 是       | 一分钟内的QPS限制，超过限制将返回403                         |
 | ip_qps      | 500        | 是       | 单IP一分钟内的QPS限制，超过限制将返回403                     |
 | max_qps     | 500000     | 是       | 一分钟内的QPS限制，超过限制将关闭CDN，如果未配置secret建议将此项配置尽量高 |
-| max_traffic | 1024       | 否       | 一天内CDN流量限制，注意：由于无法获取CDN实际实时流量，此项为估计值。当触发后将会关停CDN。 |
+| max_traffic | 1024       | 否       | 一天内CDN流量限制，单位为MB，注意：由于无法获取CDN实际实时流量，此项为估计值。当触发后将会关停CDN，注意自行在程序运行目录创建CDN.DB文件。 |
