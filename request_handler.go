@@ -47,7 +47,7 @@ func handleRequest(c *gin.Context) {
 	if ip == "" {
 		ip = c.ClientIP()
 	}
-	if !isPathWhitelisted(c.Request.URL.Path) || !isRefererWhitelisted(c.Request.Referer()) || isPathBlacklisted(c.Request.URL.Path) || isRefererBlacklisted(c.Request.Referer()) || !ip_QPS(ip) || !QPS() {
+	if !isPathWhitelisted(c.Request.URL.Path) || !isRefererWhitelisted(c.Request.Referer()) || isPathBlacklisted(c.Request.URL.Path) || isRefererBlacklisted(c.Request.Referer()) || !ip_QPM(ip) || !QPM() {
 		c.JSON(http.StatusForbidden, gin.H{"message": "Forbidden."})
 	} else {
 		go func() {
@@ -60,11 +60,11 @@ func handleRequest(c *gin.Context) {
 			}
 		}()
 		c.JSON(http.StatusOK, gin.H{"message": "OK.Tianli's CDN is working."})
-		fmt.Println("QPS:", getQPS())
+		fmt.Println("QPM:", getQPM())
 	}
 }
 
-func ip_QPS(ip string) bool {
+func ip_QPM(ip string) bool {
 	if ip == "" {
 		return true
 	}
@@ -91,10 +91,10 @@ func ip_QPS(ip string) bool {
 	record.LastAccessTime = currentTime
 	ipAccessMap[ip] = record
 
-	return record.Count <= ip_qps_int
+	return record.Count <= ip_QPM_int
 }
 
-func QPS() bool {
+func QPM() bool {
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -109,17 +109,17 @@ func QPS() bool {
 	}
 
 	// 记录当前的访问次数和时间
-	record, exists := ipAccessMap["QPS"]
+	record, exists := ipAccessMap["QPM"]
 	if !exists {
 		record = AccessRecord{}
 	}
 	record.Count++
 	record.LastAccessTime = currentTime
-	ipAccessMap["QPS"] = record
+	ipAccessMap["QPM"] = record
 
 	go func() {
-		if record.Count > max_qps_int {
-			fmt.Println("QPS超过阈值，当前QPS为：", record.Count)
+		if record.Count > max_QPM_int {
+			fmt.Println("QPM超过阈值，当前QPM为：", record.Count)
 			result, _ := NewStopCdnDomainRequests(cdn_domains)
 			fmt.Println("请检查是否有人在攻击你的CDN！", result)
 			// 限制NewStopCdnDomainRequests函数的调用频率
@@ -127,14 +127,14 @@ func QPS() bool {
 		}
 	}()
 
-	return record.Count <= qps_int
+	return record.Count <= QPM_int
 }
 
-func getQPS() int {
+func getQPM() int {
 	mutex.RLock()
 	defer mutex.RUnlock()
 
-	record, exists := ipAccessMap["QPS"]
+	record, exists := ipAccessMap["QPM"]
 	if !exists {
 		return 0
 	}

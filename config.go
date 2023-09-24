@@ -11,9 +11,9 @@ import (
 var (
 	secretID    string
 	secretKey   string
-	ip_qps_int  int
-	qps_int     int
-	max_qps_int int
+	ip_QPM_int  int
+	QPM_int     int
+	max_QPM_int int
 	cdn_domains string
 	maxTraffic  float64
 )
@@ -37,26 +37,26 @@ func loadconfig() {
 	}
 	secretID = os.Getenv("secretID")
 	secretKey = os.Getenv("secretKey")
-	ip_qps_str := os.Getenv("ip_qps")
+	ip_QPM_str := os.Getenv("ip_QPM")
 
-	ip_qps_int, err = strconv.Atoi(ip_qps_str)
+	ip_QPM_int, err = strconv.Atoi(ip_QPM_str)
 	if err != nil {
-		fmt.Println("ip_qps转换失败，请检查.env文件")
-		ip_qps_int = 1000
+		fmt.Println("ip_QPM转换失败，请检查.env文件")
+		ip_QPM_int = 1000
 	}
 
-	qps_str := os.Getenv("qps")
-	qps_int, err = strconv.Atoi(qps_str)
+	QPM_str := os.Getenv("QPM")
+	QPM_int, err = strconv.Atoi(QPM_str)
 	if err != nil {
-		fmt.Println("qps转换失败，请检查.env文件")
-		qps_int = 10000
+		fmt.Println("QPM转换失败，请检查.env文件")
+		QPM_int = 10000
 	}
 
-	max_qps_str := os.Getenv("max_qps")
-	max_qps_int, err = strconv.Atoi(max_qps_str)
+	max_QPM_str := os.Getenv("max_QPM")
+	max_QPM_int, err = strconv.Atoi(max_QPM_str)
 	if err != nil {
-		fmt.Println("max_qps转换失败，请检查.env文件")
-		max_qps_int = 1000000
+		fmt.Println("max_QPM转换失败，请检查.env文件")
+		max_QPM_int = 1000000
 	}
 
 	if secretID == "" || secretKey == "" {
