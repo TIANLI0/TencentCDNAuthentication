@@ -199,12 +199,20 @@ func Traffic(path string) bool {
 func readDB(path string) float64 {
 	file, err := os.OpenFile(dbFile, os.O_RDONLY, 0666)
 	if err != nil {
-		fmt.Println("打开DB失败:", err)
-		return 0
+		if os.IsNotExist(err) {
+			file, err = os.Create(dbFile)
+			if err != nil {
+				fmt.Println("创建DB文件失败:", err)
+				return 0.0
+			}
+		} else {
+			fmt.Println("打开DB文件失败:", err)
+			return 0.0
+		}
 	}
 	defer file.Close()
-	var bodySize int
 
+	var bodySize int
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -236,8 +244,16 @@ func readDB(path string) float64 {
 func recordDB(path string, bodySize int) {
 	file, err := os.OpenFile(dbFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
-		fmt.Println("打开DB失败:", err)
-		return
+		if os.IsNotExist(err) {
+			file, err = os.Create(dbFile)
+			if err != nil {
+				fmt.Println("创建DB文件失败:", err)
+				return
+			}
+		} else {
+			fmt.Println("打开DB文件失败:", err)
+			return
+		}
 	}
 	defer file.Close()
 
