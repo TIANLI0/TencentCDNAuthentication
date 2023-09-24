@@ -17,6 +17,11 @@ type AccessRecord struct {
 	LastAccessTime time.Time
 }
 
+type BodySizeRecord struct {
+	Size int
+	Wait *sync.WaitGroup
+}
+
 var (
 	mutex         sync.RWMutex
 	ipAccessMap   map[string]AccessRecord
@@ -25,6 +30,7 @@ var (
 	istrigger     bool
 	dbFile        = "CDN.DB"
 	traffic       float64
+	bodySizeMap   sync.Map
 )
 
 func init() {
@@ -185,7 +191,6 @@ func Traffic(path string) bool {
 	traffic_0 := readDB(path)
 	if traffic_0 == 0.0 {
 		bodySize := getBodySize(path)
-		recordDB(path, bodySize)
 		traffic += float64(bodySize) / 1024.0 / 1024.0
 	} else {
 		traffic += traffic_0
@@ -267,12 +272,34 @@ func recordDB(path string, bodySize int) {
 
 // 获取请求地址的body大小
 func getBodySize(path string) int {
+	// 先检查是否已经存在记录
+	record, ok := bodySizeMap.Load(path)
+	if ok {
+		bsr := record.(*BodySizeRecord)
+		// 等待请求完成
+		bsr.Wait.Wait()
+		return bsr.Size
+	}
+
+	// 创建等待组，并放入bodySizeMap中
+	var wait sync.WaitGroup
+	wait.Add(1)
+
+	bsr := &BodySizeRecord{
+		Wait: &wait,
+	}
+
+	bodySizeMap.Store(path, bsr)
+
 	// 组装请求地址
 	url := fmt.Sprintf("http://%s%s", cdn_domains, path)
 
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println("请求失败:", err)
+		bsr.Size = 0
+		bsr.Wait.Done()
+		bodySizeMap.Delete(path)
 		return 0
 	}
 	defer resp.Body.Close()
@@ -281,8 +308,14 @@ func getBodySize(path string) int {
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println("请求失败:", err)
+		bsr.Size = 0
+		bsr.Wait.Done()
+		bodySizeMap.Delete(path)
 		return 0
 	}
 
-	return len(bodyBytes)
+	bsr.Size = len(bodyBytes)
+	bsr.Wait.Done()
+	recordDB(path, bsr.Size)
+	return bsr.Size
 }
