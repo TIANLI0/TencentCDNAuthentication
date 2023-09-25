@@ -31,6 +31,7 @@ var (
 	dbFile        = "CDN.DB"
 	traffic       float64
 	bodySizeMap   sync.Map
+	QPM_Flag      = false
 )
 
 func init() {
@@ -61,6 +62,17 @@ func handleRequest(c *gin.Context) {
 		}()
 		c.JSON(http.StatusOK, gin.H{"message": "OK.Tianli's CDN is working."})
 		fmt.Println("QPM:", getQPM())
+		if !QPM_Flag {
+			QPM_Flag = true
+			go func() {
+				// 每隔一分钟将总QPM置0
+				time.Sleep(time.Minute)
+				mutex.Lock()
+				ipAccessMap["QPM"] = AccessRecord{}
+				mutex.Unlock()
+				QPM_Flag = false
+			}()
+		}
 	}
 }
 
@@ -179,14 +191,20 @@ func logRequest(c *gin.Context) {
 }
 
 func Traffic(path string) bool {
-	go func() {
-		if !istrigger {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if !istrigger {
+		istrigger = true
+		traffic = 0.0
+		// 启动一个goroutine，在24小时后将标志位设为false
+		go func() {
 			time.Sleep(24 * time.Hour)
-			istrigger = true
-			// 清零流量统计
-			traffic = 0.0
-		}
-	}()
+			mutex.Lock()
+			istrigger = false
+			mutex.Unlock()
+		}()
+	}
 
 	traffic_0 := readDB(path)
 	if traffic_0 == 0.0 {
