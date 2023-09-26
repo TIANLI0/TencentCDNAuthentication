@@ -51,15 +51,17 @@ func handleRequest(c *gin.Context) {
 	if !isPathWhitelisted(c.Request.URL.Path) || !isRefererWhitelisted(c.Request.Referer()) || isPathBlacklisted(c.Request.URL.Path) || isRefererBlacklisted(c.Request.Referer()) || !ip_QPM(ip) || !QPM() {
 		c.JSON(http.StatusForbidden, gin.H{"message": "Forbidden."})
 	} else {
-		go func() {
-			if Traffic(c.Request.URL.Path) {
-				fmt.Println("流量超过阈值，已停止CDN服务")
-				result, _ := NewStopCdnDomainRequests(cdn_domains)
-				fmt.Println("请检查是否有人在攻击你的CDN！", result)
-				// 限制NewStopCdnDomainRequests函数的调用频率
-				time.Sleep(60 * time.Second)
-			}
-		}()
+		if maxTraffic != 0 {
+			go func() {
+				if Traffic(c.Request.URL.Path) {
+					fmt.Println("流量超过阈值，已停止CDN服务")
+					result, _ := NewStopCdnDomainRequests(cdn_domains)
+					fmt.Println("请检查是否有人在攻击你的CDN！", result)
+					// 限制NewStopCdnDomainRequests函数的调用频率
+					time.Sleep(60 * time.Second)
+				}
+			}()
+		}
 		c.JSON(http.StatusOK, gin.H{"message": "OK.Tianli's CDN is working."})
 		fmt.Println("QPM:", getQPM())
 		if !QPM_Flag {

@@ -72,6 +72,6 @@ func loadconfig() {
 	maxTraffic, err = strconv.ParseFloat(maxTraffic_str, 64)
 	if err != nil {
 		fmt.Println("maxTraffic转换失败，请检查.env文件")
-		maxTraffic = 1000000
+		maxTraffic = 0.0
 	}
 }
