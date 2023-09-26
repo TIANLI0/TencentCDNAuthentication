@@ -242,11 +242,11 @@ func readDB(path string) float64 {
 		linePath, err := fmt.Sscanf(line, "%s %d\n", &path, &bodySize)
 		if err != nil {
 			fmt.Println("读取失败:", err)
-			return 0.0
+			continue
 		}
 		if linePath != 2 {
 			fmt.Println("读取失败: 数据格式错误")
-			return 0.0
+			continue
 		}
 
 		// 找到匹配的路径后返回大小
@@ -257,7 +257,6 @@ func readDB(path string) float64 {
 
 	if scanner.Err() != nil {
 		fmt.Println("读取失败:", scanner.Err())
-		return 0.0
 	}
 
 	return 0.0
